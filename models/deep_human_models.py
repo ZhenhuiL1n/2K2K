@@ -316,7 +316,28 @@ class Refine_2048(nn.Module):
         self.merge1_2 = conv_block_1x1(ch_in=64, ch_out=64) 
         self.merge2_2 = conv_block_1x1(ch_in=64, ch_out=64)
         self.merge3_2 = nn.Conv2d(64, out_ch, kernel_size=1, stride=1, padding=0)
-        
+
+        self.head_dim = 64 
+
+        # changed the kernel size to 1 and this can generate the opacity, rotation and the scaling head....
+        self.rot_head = nn.Sequential(
+            nn.Conv2d(self.head_dim, self.head_dim, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(self.head_dim, 4, kernel_size=1),
+        )
+        self.scale_head = nn.Sequential(
+            nn.Conv2d(self.head_dim, self.head_dim, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(self.head_dim, 3, kernel_size=1),
+            nn.Softplus(beta=100)
+        )
+        self.opacity_head = nn.Sequential(
+            nn.Conv2d(self.head_dim, self.head_dim, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(self.head_dim, 1, kernel_size=1),
+            nn.Sigmoid()
+        )
+      
     def forward(self, d, n1, n2, n3, n4, n5, o, inv_z):
         # d : 256 resolution depth
         # n1, n2, n3, n4, n5 = part normal    
@@ -366,7 +387,23 @@ class Refine_2048(nn.Module):
 
         d3 = self.depth3(d2)
         n3 = self.normal3(n)
+
+        # TODO:  break here to check the dim of the feature, and then we can use the head to regress the gaussian parameters
+
         d3 = torch.cat((d3, n3), dim=1)
+
+        # opacity head output for gaussian
+        o1 = self.opacity_head(d3)
+        opacity_out = o1
+
+        # scaling head output for gaussian
+        s3 = self.scale_head(d3)
+        scale_out = torch.clamp_max(s3, 0.01)
+
+        # rotation head output for gaussian
+        r4 = self.rot_head(d3) 
+        rot_out = torch.nn.functional.normalize(r4, dim=1)
+
         d3 = self.merge3_1(d3)
         d3 = self.merge3_2(d3)
 
