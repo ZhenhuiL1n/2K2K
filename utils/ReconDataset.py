@@ -139,6 +139,12 @@ def inv_aff(theta):
     # Input : [b * n, 2, 3]
     R = theta[:, :2, :2]                     # [b * n, 2, 2]
     T = theta[:, :2, 2:]                     # [b * n, 2, 1]
+    
+    # print the R
+    # print("Rotation:", R)
+    # Add a samll noise in R to avoid the not invertable problem:
+    R = R + 1e-6 * torch.randn_like(R)
+    
     inv_R = torch.linalg.inv(R)              # [b * n, 2, 2]
     inv_T = - inv_R @ T                      # [b * n, 2, 1]
     return torch.cat((inv_R, inv_T), dim=2)  # [b * n, 2, 3]
@@ -282,7 +288,10 @@ class ReconDataset_2048(Dataset):
         self.mask[:,:] = 0.0
         self.mask[front_depth[0] > 0] = 1
         
-        image = self.composite_image_blur (image, mask=self.mask) # image should be tensor        
+        # image = self.composite_image_blur (image, mask=self.mask) # image should be tensor  
+        # maskout the image:
+        image[0:3, self.mask == 0] = 0.0
+              
         image = self.transform_final(image) # mean std = 0.5
         data_path = self.data_path + self.input[idx]
 
@@ -333,6 +342,10 @@ class ReconDataset_2048(Dataset):
         if random.random() > 0.1:
             bg_file = self.bg_list[image_idx]
             bg_img = cv2.imread(os.path.join(self.bg_path, bg_file), cv2.IMREAD_COLOR)
+            
+            if bg_img is None:
+                bg_img = self.black_bg
+            
             bg_img = cv2.resize(bg_img, None, fx=2, fy=2, interpolation=cv2.INTER_LINEAR)
             bg_img = cv2.cvtColor(bg_img, cv2.COLOR_BGR2RGB)
         else:
@@ -348,6 +361,7 @@ class ReconDataset_2048(Dataset):
         filtered_front = cv2.medianBlur(image, 3)
         filtered_front = cv2.GaussianBlur(filtered_front, (5, 5), 0)
         image[b_idx, :] = filtered_front[b_idx, :]
+        
         image = torch.Tensor(image).permute(2, 0, 1)
 
         return image

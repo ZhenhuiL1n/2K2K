@@ -383,7 +383,7 @@ class LossBuilderHuman_2048 (LossBank):
         return loss, losses, input_var, pred_var, target_show  # for visualization
 
     # custom loss functions here.
-    def get_loss(self, pred, target, weight=None, loss_type='l1', sigma=None):
+    def get_l1oss(self, pred, target, weight=None, loss_type='l1', sigma=None):
         if loss_type == 'l1':
             loss = self.get_l1_loss (pred, target)
         elif loss_type == 'sl1':

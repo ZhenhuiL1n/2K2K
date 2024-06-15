@@ -239,7 +239,7 @@ def render_mesh(data_path, # '/workspace/code_github/data/'
                 smpl_mesh.vertices += smpl_param['translation']
 
         cnt += 1
-
+        
         for p in range(len(rot_angle_x)):
             pers_depth_name = os.path.join(PERS_DEPTH_ROOT, folder_pers_depth[p], item_name)
             pers_img_name = os.path.join(PERS_COLOR_ROOT, folder_pers_color[p], item_name)
